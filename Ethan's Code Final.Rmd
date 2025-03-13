@@ -1,0 +1,460 @@
+---
+title: "F23_Project_Final"
+author: "Ethan Carter"
+date: "2023-11-30"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+raw_data <- read.csv("C:/Users/ethan/OneDrive/Desktop/New folder/Semester 15/STAT 512/Data/spotify-2023.csv", header =TRUE, sep=",")
+raw_data
+```
+
+
+
+
+KEY FEATURES:
+
+- track_name: Name of the song 
+- artist(s)_name: Name of the artist(s) of the song 
+- artist_count: Number of artists contributing to the song 
+
+- released_year: Year when the song was released 
+- released_month: Month when the song was released 
+- released_day: Day of the month when the song was released
+
+- in_spotify_playlists: Number of Spotify playlists the song is included in 
+- in_spotify_charts: Presence and rank of the song on Spotify charts
+
+- streams: Total number of streams on Spotify
+
+- in_apple_playlists: Number of Apple Music playlists the song is included in 
+- in_apple_charts: Presence and rank of the song on Apple Music charts
+
+- in_deezer_playlists: Number of Deezer playlists the song is included in 
+- in_deezer_charts: Presence and rank of the song on Deezer charts
+
+- in_shazam_charts: Presence and rank of the song on Shazam charts
+
+- bpm: Beats per minute, a measure of song tempo 
+- key: Key of the song 
+- mode: Mode of the song (major or minor) 
+- danceability_%: Percentage indicating how suitable the song is for dancing 
+- valence_%: Positivity of the song's musical content 
+- energy_%: Perceived energy level of the song 
+- acousticness_%: Amount of acoustic sound in the song 
+- instrumentalness_%: Amount of instrumental content in the song 
+- liveness_%: Presence of live performance elements 
+- speechiness_%: Amount of spoken words in the song 
+
+```{r cars}
+#install.packages("base")
+#install.packages("dplyr")
+library("base")
+library("dplyr")
+
+raw_dataframe <- data.frame(raw_data)
+raw_dataframe
+
+## Uncomment for the raw variables
+track_name <- raw_dataframe$track_name
+
+spotify_charts <- raw_dataframe$in_spotify_charts
+apple_charts <- raw_dataframe$in_apple_charts
+
+bpm <- raw_dataframe$bpm
+danceability <- raw_dataframe$danceability_.
+valence <- raw_dataframe$valence_.
+energy <- raw_dataframe$energy_.
+streams <- raw_dataframe$streams
+playlists <- raw_dataframe$in_spotify_playlists
+
+
+### Mode would need to be translated to a categorical variable
+#https://www.statology.org/r-append-to-vector-in-loop/
+mode <- c()
+#count <- 0
+for (mode_. in raw_dataframe$mode){
+  if (mode_. == 'Major'){
+    mode <- c(mode,1)
+    #print (1)
+  }
+  else if (mode_. == 'Minor'){
+    mode <- c(mode,0)
+    #print(0)
+  }
+  else {
+    mode <- c(mode," ")
+  }
+  #count <- count + 1
+}
+#mode 
+#count
+
+unprocessed_dataframe <- data.frame(bpm,danceability,energy,mode,spotify_charts)
+processed_dataframe <- na.omit(unprocessed_dataframe)
+#processed_dataframe <- processed_dataframe[apply(processed_dataframe!=0,1,all),]
+processed_dataframe <- processed_dataframe %>% filter(processed_dataframe$spotify_charts != 0)
+
+## Uncomment for processed variables
+spotify_charts <- processed_dataframe$spotify_charts
+bpm <- processed_dataframe$bpm
+danceability <- processed_dataframe$danceability
+energy <- processed_dataframe$energy
+mode <- processed_dataframe$mode
+
+hist(spotify_charts)
+hist(bpm)
+hist(danceability)
+hist(energy)
+hist(mode)
+
+plot(processed_dataframe)
+processed_dataframe
+
+
+bpm_slr <- lm(spotify_charts~bpm)
+danceability_slr <- lm(spotify_charts~danceability)
+energy_slr <- lm(spotify_charts~energy)
+
+full_model <- lm(spotify_charts~bpm+danceability+energy+factor(mode)
+                 +bpm:factor(mode)+danceability:factor(mode)+energy:factor(mode)
+                 , qr = TRUE)
+
+```
+
+
+```{R}
+### SLR Model Analysis
+
+#install.packages("lmtest")
+library(lmtest)
+
+class(bpm_slr$model$bpm)
+class(danceability_slr$model$danceability)
+class(energy_slr$model$energy)
+
+### BPM ###
+summary(bpm_slr)
+anova(bpm_slr)
+bpm_slr.residuals <- residuals(bpm_slr)
+shapiro.test(bpm_slr.residuals)                           #Reject
+bptest(bpm_slr)                                           #Fail to reject
+plot(bpm_slr)
+hist(bpm_slr$model$bpm)
+boxplot(bpm_slr$model$bpm)
+
+### Danceability ###
+summary(danceability_slr)
+anova(danceability_slr)
+danceability_slr.residuals <- residuals(danceability_slr)
+shapiro.test(danceability_slr.residuals)                 #Reject
+bptest(danceability_slr)                                 #Fail to reject
+plot(danceability_slr)
+hist(danceability_slr$model$danceability)
+boxplot(danceability_slr$model$danceability)
+
+### Energy ###
+summary(energy_slr)
+anova(energy_slr)
+energy_slr.residuals <- residuals(energy_slr)
+shapiro.test(energy_slr.residuals)                      #Reject
+bptest(energy_slr)                                      #Fail to reject
+plot(energy_slr)
+hist(energy_slr$model$energy)
+boxplot(energy_slr$model$energy )
+
+### Full ###
+summary(full_model)
+anova(full_model)
+full_model.residuals <- residuals(full_model)
+shapiro.test(full_model.residuals)
+bptest(full_model)
+```
+
+
+```{r}
+### Low p-value for the Shapiro-Wilk Test ###
+### Apply the Box Cox method ###
+# Reminder: Back Transform to interpret model
+#install.packages("MASS")
+library(MASS)
+
+### BPM ###
+y <- bpm_slr$model$spotify_charts
+x <- bpm_slr$model$bpm
+
+bc1 <- boxcox(y~x)
+(lambda1 <- bc1$x[which.max(bc1$y)])
+
+new_bpm_slr <- lm(((y^lambda1-1)/lambda1) ~ x)
+
+new_bpm_slr.residuals <- residuals(new_bpm_slr)
+shapiro.test(new_bpm_slr.residuals)                           #Reject
+plot(new_bpm_slr)
+hist(new_bpm_slr$model$x)
+boxplot(new_bpm_slr$model$x)
+
+# Apply Robust Regression
+new_y <- new_bpm_slr$model$`((y^lambda1 - 1)/lambda1)`
+new_x <- new_bpm_slr$model$x
+
+new_robust_bpm_slr <- rlm(new_y ~ new_x, psi=psi.bisquare)
+
+new_robust_bpm_slr.residuals <- residuals(new_robust_bpm_slr)
+shapiro.test(new_robust_bpm_slr.residuals)                   #Reject
+plot(new_robust_bpm_slr)
+hist(new_robust_bpm_slr$model$new_x)
+boxplot(new_robust_bpm_slr$model$new_x)
+
+### Danceability ###
+y <- danceability_slr$model$spotify_charts
+x <- danceability_slr$model$danceability
+
+bc2 <- boxcox(y~x)
+(lambda2 <- bc2$x[which.max(bc2$y)])
+
+new_danceability_slr <- lm(((y^lambda2-1)/lambda2) ~ x)
+
+new_danceability_slr.residuals <- residuals(new_danceability_slr)
+shapiro.test(new_danceability_slr.residuals)                           #Reject
+plot(new_danceability_slr)
+hist(new_danceability_slr$model$x)
+boxplot(new_danceability_slr$model$x)
+
+# Apply Robust Regression
+new_y <- new_danceability_slr$model$`((y^lambda2 - 1)/lambda2)`
+new_x <- new_danceability_slr$model$x
+
+new_robust_danceability_slr <- rlm(new_y ~ new_x, psi=psi.bisquare)
+
+new_robust_danceability_slr.residuals <- residuals(new_robust_danceability_slr)
+shapiro.test(new_robust_danceability_slr.residuals)                   #Reject
+plot(new_robust_danceability_slr)
+hist(new_robust_danceability_slr$model$new_x)
+boxplot(new_robust_danceability_slr$model$new_x)
+
+### Energy ###
+y <- energy_slr$model$spotify_charts
+x <- energy_slr$model$energy
+
+bc3 <- boxcox(y~x)
+(lambda3 <- bc3$x[which.max(bc3$y)])
+
+new_energy_slr <- lm(((y^lambda3-1)/lambda3) ~ x)
+
+new_energy_slr.residuals <- residuals(new_energy_slr)
+shapiro.test(new_energy_slr.residuals)                           #Reject
+plot(new_energy_slr)
+hist(new_energy_slr$model$x)
+boxplot(new_energy_slr$model$x)
+
+# Apply Robust Regression
+new_y <- new_energy_slr$model$`((y^lambda3 - 1)/lambda3)`
+new_x <- new_energy_slr$model$x
+
+new_robust_energy_slr <- rlm(new_y ~ new_x, psi=psi.bisquare)
+
+new_robust_energy_slr.residuals <- residuals(new_robust_danceability_slr)
+shapiro.test(new_robust_energy_slr.residuals)                   #Reject
+plot(new_robust_energy_slr)
+hist(new_robust_energy_slr$model$new_x)
+boxplot(new_robust_energy_slr$model$new_x)
+
+# Summary of SLR models
+# This gives the impact of each variable
+print("Transformed Robust BPM")
+summary(new_robust_bpm_slr)
+print("Transformed Robust Danceability")
+summary(new_robust_danceability_slr)
+print("Transformed Robust Energy")
+summary(new_robust_energy_slr)
+# Factor of 10 improvement on the p-value 
+# Still below 0.05
+```
+
+```{r}
+# MLR analysis
+#install.packages("car")
+#install.packages("mlr")
+#install.packages("boot")
+#install.packages("lmridge")
+#install.packages("fmsb")
+#install.packages("ALSM")
+#install.packages("leaps")
+#install.packages("caret")
+library(car)
+library(mlr)
+
+summary(full_model)
+Anova(full_model, type = "II")
+anova(full_model)
+avPlots(full_model)
+
+# Assumption Checking
+shapiro.test(full_model.residuals)  #Reject
+bptest(full_model)                  #Failed to Reject
+plot(full_model)
+plot(full_model.residuals)
+qqnorm(full_model.residuals)
+car::vif(full_model) # Categorical Variable (Mode) presents high levels of 
+                   # multicollinearity suggesting that it presents little value 
+                   # as a predictor variable 
+
+##################################################
+# fmsb as a function overwrite that is not compatible with the 
+# previous definition of bptest 
+library(fmsb)
+
+# Multicollinearity 
+VIF(full_model)     
+
+
+```
+
+```{r}
+#################################################
+## Box Cox Transformation
+## Handling the non normality
+library(MASS)
+
+full__model <- lm(spotify_charts~bpm+danceability+energy) #Double underscore
+
+bc_full <- boxCox(full__model, lambda = seq(-2,2,0.1))
+lambda_full <- bc_full$x[which.max(bc_full$y)]
+
+boxcox_spotify_charts <- ((spotify_charts^lambda_full-1)/lambda_full)
+
+
+#class(boxcox_spotify_charts)
+#length(boxcox_spotify_charts)
+
+full_boxcox_model <- lm(boxcox_spotify_charts~bpm+danceability+energy+factor(mode)
+                 +bpm:factor(mode)+danceability:factor(mode)+energy:factor(mode))
+
+
+summary(full_boxcox_model)
+Anova(full_boxcox_model, type = "II")
+anova(full_boxcox_model)
+full_boxcox_model.residuals <- residuals(full_boxcox_model)
+shapiro.test(full_boxcox_model.residuals)                  #Reject
+plot(full_boxcox_model)                                    #Again large improvement but still not passing
+plot(full_boxcox_model.residuals) 
+
+#################################################
+# Check for influential points
+# Handling the non normality continued
+
+DFFITS = dffits(full_model)
+Cook = cooks.distance(full_model)
+DFBETAS = dfbetas(full_model)
+influential_points_dfbetas <- which(abs(DFBETAS) > 2, arr.ind = TRUE)
+influential_points_cooks <- which(Cook > 4 / nobs(full_model), arr.ind = TRUE)
+avg_dffits <- sqrt(mean(DFFITS^2))
+influential_points_dffits <- which(abs(DFFITS) > 2 * avg_dffits, arr.ind = TRUE)
+
+#influential_points_cooks
+#influential_points_dfbetas
+#influential_points_dffits
+
+plot(full_model, pch = 18, col = "red", which = c(4))
+dfbetasPlots(full_model)
+influencePlot(full_model)
+
+
+# Influential Point Output
+# 1   3   4   6   9  13  14  15  16  18  23  25  30  31  33  42  43  44  45  49  55  56  68 361 452 470 
+
+robust_full_model <- rlm(spotify_charts~bpm+danceability+energy+factor(mode)
+                         +bpm:factor(mode)+danceability:factor(mode)
+                         +energy:factor(mode),
+                         data=processed_dataframe, psi=psi.bisquare)
+robust_full_model.residuals <- residuals(robust_full_model)
+summary(robust_full_model)
+shapiro.test(robust_full_model.residuals)
+
+
+y <- full_boxcox_model$model$boxcox_spotify_charts
+x1 <- full_boxcox_model$model$bpm
+x2 <- full_boxcox_model$model$danceability
+x3 <- full_boxcox_model$model$energy
+x4 <- full_boxcox_model$model$`factor(mode)`
+
+
+robust_full_boxcox_model <- rlm(y ~ x1 + x2 + x3 + x4 + x1:x4 + x2:x4 + x3:x4,
+                                psi=psi.bisquare)
+robust_full_boxcox_model.residuals <- residuals(robust_full_boxcox_model)
+summary(robust_full_boxcox_model)
+shapiro.test(robust_full_boxcox_model.residuals)
+plot(robust_full_boxcox_model)
+
+summary(robust_full_boxcox_model)
+anova(robust_full_boxcox_model)
+##NOTICE:
+#Another Major improvement in the p-value 
+#Still below 0.05 @ 0.0001285
+```
+
+
+```{r}
+library(lmridge)
+## Addressing Multicollinearity
+
+avPlots(robust_full_boxcox_model)
+avPlots(full__model)
+
+car::vif(robust_full_boxcox_model)
+# Even after addressing normality the categorical variable is showing 
+# High levels of multicollinearity
+
+#Ridge Method on Transformed Full Model 
+robust_full_boxcox_model.ridge <- lm.ridge(robust_full_boxcox_model, data = processed_dataframe, lambda = seq(0,100,0.02))
+#robust_full_boxcox_model.ridge <- lm.ridge(robust_full_boxcox_model, data = processed_dataframe, lambda = seq(0,1000,0.02))
+plot(robust_full_boxcox_model.ridge)
+MASS::select(robust_full_boxcox_model.ridge)
+
+
+car::vif(full__model)
+#Ridge Method model without factor(mode)
+full__model.ridge <- lm.ridge(full__model, data = processed_dataframe, lambda = seq(0,10,1))
+#full__model.ridge <- lm.ridge(full__model, data = processed_dataframe, lambda = seq(0,10000,1))
+plot(full__model.ridge)
+MASS::select(full__model.ridge)
+
+## Each run of the ridge regression on both the model (with & without factor(mode))
+## The GCV that is related to lambda is the max value of the sequence 
+## Since Lambda manages the shrinkage of the distribution
+## You would want to balance the size of lambda with the amount of variance 
+##  that is described by the predictor variable, 
+## (i.e. the max might not be as desirable as the sequence grows to infinity)
+## What this tells me is that there is some amount of multicollinearity that 
+##  cannot be removed without trivializing the model 
+
+
+```
+
+
+```{r}
+
+################################################
+# Validation
+library(caret)
+library(leaps)
+# Compare the Robust Full BoxCox and the Full Model to compare results
+set.seed(42)
+train.control = trainControl(method="cv", number = 10)
+
+step.model1 = train(spotify_charts~bpm+danceability+energy+factor(mode)
+                 +bpm:factor(mode)+danceability:factor(mode)+energy:factor(mode),
+	data = processed_dataframe, method = "leapBackward", tuneGrid=data.frame(nvmax=7), 
+	trControl = train.control)
+step.model1$results
+
+step.model2 = train(y ~ x1 + x2 + x3 + x4 + x1:x4 + x2:x4 + x3:x4,
+                    data = data.frame(robust_full_boxcox_model$model),	
+                    method = "leapBackward", tuneGrid=data.frame(nvmax=7),
+	                  trControl = train.control)
+step.model2$results
+
+
+```

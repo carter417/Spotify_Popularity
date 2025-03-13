@@ -1,7 +1,5 @@
 # Spotify_Popularity
 
-# F23_Project
-
 ## Overview
 
 **F23_Project** is an R Markdown project that performs statistical analysis on Spotify music data. It utilizes data processing, visualization, and regression modeling techniques to explore relationships between various song attributes and their popularity on music streaming platforms.
